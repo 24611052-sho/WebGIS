@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="id">
+  /*--- SHOFI SALSABILA - 24611052 ---*/
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebGIS Sebaran Apotek DIY</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+      /* --- GLOBAL --- */
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: "Poppins", sans-serif;
+        overflow: hidden;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+        background: #eef2f3;
+      }
+
+      /* --- 1. JUDUL PETA --- */
+      .header-card {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(5px);
+        padding: 12px 30px;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        min-width: 320px;
+      }
+      .header-card h1 {
+        margin: 0;
+        font-size: 18px;
+        color: #2c3e50;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .header-card p {
+        margin: 2px 0 0;
+        font-size: 11px;
+        color: #666;
+      }
+
+      /* --- 2. LEGENDA (KIRI BAWAH) --- */
+      .legend-card {
+        position: absolute;
+        bottom: 30px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        width: 230px;
+        border-left: 5px solid #2c3e50;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .legend-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        display: block;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        transition: 0.2s;
+      }
+      .legend-item:hover {
+        background: #f1f2f6;
+        transform: translateX(3px);
+      }
+      .color-box {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        margin-right: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        border: 1px solid #fff;
+      }
+      .legend-text {
+        font-size: 11px;
+        font-weight: 600;
+        color: #555;
+      }
+
+      .map-desc {
+        font-size: 10px;
+        color: #666;
+        margin-top: 15px;
+        padding-top: 10px;
+        border-top: 2px dashed #eee;
+        line-height: 1.4;
+        text-align: justify;
+      }
+      .map-desc b {
+        color: #2c3e50;
+        display: block;
+        margin-bottom: 3px;
+        font-size: 11px;
+      }
+
+      .btn-reset {
+        margin-top: 10px;
+        width: 100%;
+        padding: 8px;
+        background: #2c3e50;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 10px;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+      .btn-reset:hover {
+        background: #34495e;
+      }
+
+      /* --- 3. SKALA & MATA ANGIN (KANAN ATAS) --- */
+      .leaflet-top.leaflet-right .leaflet-control-scale {
+        margin-top: 15px !important;
+        margin-right: 15px !important;
+        border: 2px solid #2c3e50;
+        background: rgba(255, 255, 255, 0.9);
+        font-weight: bold;
+        color: #2c3e50;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      .north-arrow {
+        position: absolute;
+        top: 55px;
+        right: 15px;
+        z-index: 1000;
+        width: 80px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        pointer-events: none;
+      }
+
+      /* --- 4. LABEL WILAYAH (JURUS PAKSA) --- */
+      .label-wilayah {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+      }
+      .label-wilayah div {
+        font-family: "Poppins", sans-serif;
+        font-weight: 900;
+        font-size: 13px;
+        color: #444;
+        text-shadow:
+          -1px -1px 0 #fff,
+          1px -1px 0 #fff,
+          -1px 1px 0 #fff,
+          1px 1px 0 #fff;
+        text-transform: uppercase;
+        text-align: center;
+        white-space: nowrap;
+        letter-spacing: 1px;
+        pointer-events: none;
+      }
+
+      /* POPUP */
+      .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        overflow: hidden;
+        padding: 0;
+      }
+      .leaflet-popup-content {
+        margin: 0;
+        width: 220px !important;
+      }
+      .popup-head {
+        background: #2c3e50;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 12px;
+      }
+      .popup-body {
+        padding: 12px;
+        text-align: center;
+        font-size: 11px;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-card">
+      <h1>Sebaran Apotek</h1>
+      <p>Sistem Informasi Geografis D.I. Yogyakarta</p>
+    </div>
+
+    <div class="legend-card">
+      <span class="legend-title">LEGENDA PETA</span>
+      <div id="legendList"></div>
+      <div class="map-desc">
+        <b>Tentang Peta:</b>
+        Peta ini memvisualisasikan data geospasial lokasi 25 apotek yang tersebar di wilayah D.I. Yogyakarta.
+      </div>
+      <button class="btn-reset" onclick="map.flyTo([-7.88, 110.45], 10)"><i class="fas fa-undo"></i> RESET PETA</button>
+    </div>
+
+    <img src="assets/north.png" class="north-arrow" alt="Utara" />
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      // =========================================
+      // A. CONFIG WARNA
+      // =========================================
+      const COLORS = {
+        KOTA: "#e74c3c",
+        SLEMAN: "#f1c40f",
+        BANTUL: "#2ecc71",
+        KULON: "#e67e22",
+        GUNUNG: "#9b59b6",
+      };
+
+      // =========================================
+      // B. DATA 25 APOTEK (NAMA & ALAMAT)
+      // =========================================
+      const apotekData = [
+        // SLEMAN
+        { lat: -7.7693, lng: 110.3906, nama: "Apotek K-24 Gejayan", alamat: "Jl. Affandi No.29, Santren, Caturtunggal, Kec. Depok, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55281" },
+        { lat: -7.7231, lng: 110.3815, nama: "Apotek K-24 Palagan Sleman", alamat: "Jl. Palagan Tentara Pelajar No.8,3, Tegal Rejo, Sariharjo, Kec. Ngaglik, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55581" },
+        { lat: -7.783, lng: 110.3973, nama: "Apotek K24 Ambarukmo", alamat: "Jl. Laksda Adisucipto No.150 A, Papringan, Caturtunggal, Kec. Depok, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55281" },
+        { lat: -7.6697, lng: 110.4177, nama: "Apotek K-24 Pakem Sleman", alamat: "Jl. Kaliurang No.Km. 17, Sukanan, Pakembinangun, Kec. Pakem, Yogyakarta, Daerah Istimewa Yogyakarta 55582" },
+        { lat: -7.7233, lng: 110.4019, nama: "Apotek Unisia 24 Gentan", alamat: "Jalan Kaliurang No.KM 10 No.13, Gentan, Sinduharjo, Kec. Ngaglik, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55581" },
+        { lat: -7.7368, lng: 110.3917, nama: "Apotek K-24 Dayu Sleman", alamat: "Jl. Kaliurang Prujakan KM 8, Tambakan, Sinduharjo, Kec. Ngaglik, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55283" },
+        { lat: -7.689, lng: 110.418, nama: "Apotek UII Farma", alamat: "Jl. Kaliurang No.Km 14, RW.5, Lodadi, Umbulmartani, Kec. Ngemplak, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55584" },
+
+        // BANTUL
+        { lat: -7.919, lng: 110.2832, nama: "Apotek Darma Bakti Medika", alamat: "Jl. Srandakan, Juwono, Triharjo, Kec. Pandak, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55761" },
+        { lat: -7.8765, lng: 110.3745, nama: "Apotek Stepa Sewon", alamat: "499F+8RF, Jl. Imogiri Barat, Ngentak, Timbulharjo, Kec. Sewon, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55185" },
+        { lat: -7.8113, lng: 110.2759, nama: "Apotek K-24 Sedayu Bantul", alamat: "Jl. Wates - Purworejo, Pedes, Argomulyo, Kec. Sedayu, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55752" },
+        { lat: -7.8379, lng: 110.3171, nama: "APOTEK BANTUL 1", alamat: "Jl. Karangjati, Gendeng, Bangunjiwo, Kec. Kasihan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55184" },
+        { lat: -7.862, lng: 110.3892, nama: "Apotek K-24 Imogiri Timur Bantul", alamat: "Jl. Imogiri Tim., Jati, Wonokromo, Kec. Pleret, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55791" },
+        { lat: -7.893, lng: 110.3393, nama: "Apotek Indah Farma & Pengisian Oksigen", alamat: "Jl. Dr. Wahidin Sudiro Husodo No.52, Area Sawah, Trirenggo, Kec. Bantul, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55714" },
+
+        // KOTA YOGYAKARTA
+        { lat: -7.8145, lng: 110.3791, nama: "Apotek ELS Farma", alamat: "Jl. Menteri Supeno No.45, Sorosutan, Kec. Umbulharjo, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55162" },
+        { lat: -7.7893, lng: 110.3694, nama: "Apotek K-24 Kotabaru", alamat: "Jl. Ahmad Jazuli No.1, Kotabaru, Kec. Gondokusuman, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55224" },
+        { lat: -7.774, lng: 110.3612, nama: "Apotek K-24 Jl. Magelang Yogyakarta", alamat: "Jalan Magelang No.160-162 Kricak, Karangwaru, Kec. Tegalrejo, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55241" },
+        { lat: -7.799, lng: 110.3622, nama: "Apotek K-24 Bhayangkara", alamat: "Jl. Bhayangkara No.30A, Ngupasan, Kec. Gondomanan, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55122" },
+
+        // KULON PROGO
+        { lat: -7.7166, lng: 110.2245, nama: "Apotek Siaga 20", alamat: "Kagongan Jl. Persandian No.2, Sayangan, Banjararum, Kec. Kalibawang, Kabupaten Kulon Progo, Daerah Istimewa Yogyakarta 55672" },
+        { lat: -7.8153, lng: 110.2259, nama: "Apotek Alma Farma", alamat: "Jl. Sentolo Nanggulan, Bantarejo, Banguncipto, Kec. Sentolo, Kabupaten Kulon Progo, Daerah Istimewa Yogyakarta" },
+        { lat: -7.8655, lng: 110.156, nama: "Apotek K-24 Khudori Kulon Progo", alamat: "Jl. Khudori No.7B, Wador, Wates, Kec. Wates, Kabupaten Kulon Progo, Daerah Istimewa Yogyakarta 55651" },
+        { lat: -7.9479, lng: 110.223, nama: "Apotek Kranggan Farma", alamat: "Jl. Daendels Pantai Sel. No.111, Dukuh Kilung, Kranggan, Kec. Galur, Kabupaten Kulon Progo, Daerah Istimewa Yogyakarta 55661" },
+
+        // GUNUNGKIDUL
+        { lat: -7.866, lng: 110.7365, nama: "Apotek AsriAgung", alamat: "Semin, Gunungkidul Regency, Special Region of Yogyakarta 55854" },
+        { lat: -7.9604, lng: 110.5955, nama: "Apotek K-24 Agus Salim Gunung Kidul", alamat: "Jl. KH Agus Salim No.80, Kepek I, Kepek, Kec. Wonosari, Kabupaten Gunungkidul, Daerah Istimewa Yogyakarta 55813" },
+        { lat: -7.9687, lng: 110.5964, nama: "Apotek K-24 Jeruksari Gunungkidul", alamat: "Jl. Taman Bakti No.48, Jeruksari, Wonosari, Kec. Wonosari, Kabupaten Gunungkidul, Daerah Istimewa Yogyakarta 55851" },
+        { lat: -7.965, lng: 110.605, nama: "Apotek Saridewi Husada", alamat: "Jl. Veteran No.45, Trimulyo I, Kepek, Kec. Wonosari, Kabupaten Gunungkidul, Daerah Istimewa Yogyakarta 55813" },
+      ];
+
+      // =========================================
+      // C. SETUP PETA
+      // =========================================
+      var map = L.map("map", { zoomControl: false }).setView([-7.88, 110.45], 10);
+      L.control.zoom({ position: "topleft" }).addTo(map);
+
+      // Basemap
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution: "WebGIS by <b>SHOFI SALSABILA - 24611052</b>",
+      }).addTo(map);
+
+      // Skala (Kanan Atas)
+      L.control.scale({ position: "topright", maxWidth: 150 }).addTo(map);
+
+      // =========================================
+      // D. MARKER APOTEK
+      // =========================================
+      var iconApotek = L.icon({
+        iconUrl: "assets/marker.png",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32],
+      });
+
+      apotekData.forEach((d) => {
+        L.marker([d.lat, d.lng], { icon: iconApotek })
+          .bindPopup(
+            `
+            <div class="popup-head">${d.nama}</div>
+            <div class="popup-body"><i class="fas fa-map-pin"></i> ${d.alamat}</div>
+          `,
+          )
+          .addTo(map);
+      });
+
+      // =========================================
+      // E. LOGIKA WARNA & LABEL (JURUS PAKSA)
+      // =========================================
+      function getStyleByFeature(feature) {
+        var rawData = JSON.stringify(feature.properties).toUpperCase();
+        var warnanya = "#95a5a6";
+
+        if (rawData.includes("SLEMAN")) warnanya = COLORS["SLEMAN"];
+        else if (rawData.includes("BANTUL")) warnanya = COLORS["BANTUL"];
+        else if (rawData.includes("KULON")) warnanya = COLORS["KULON"];
+        else if (rawData.includes("GUNUNG")) warnanya = COLORS["GUNUNG"];
+        else if (rawData.includes("YOGYA") || rawData.includes("KOTA")) warnanya = COLORS["KOTA"];
+
+        return {
+          fillColor: warnanya,
+          weight: 2,
+          opacity: 1,
+          color: "white",
+          dashArray: "3",
+          fillOpacity: 0.6,
+        };
+      }
+
+      fetch("jogja.geojson")
+        .then((res) => res.json())
+        .then((data) => {
+          L.geoJSON(data, {
+            style: getStyleByFeature,
+            onEachFeature: function (feature, layer) {
+              // --- JURUS PAKSA LABEL NAMA ---
+              var rawData = JSON.stringify(feature.properties).toUpperCase();
+              var labelNama = "DIY"; // Default
+
+              if (rawData.includes("SLEMAN")) labelNama = "SLEMAN";
+              else if (rawData.includes("BANTUL")) labelNama = "BANTUL";
+              else if (rawData.includes("KULON")) labelNama = "KULON PROGO";
+              else if (rawData.includes("GUNUNG")) labelNama = "GUNUNGKIDUL";
+              else if (rawData.includes("YOGYA") || rawData.includes("KOTA")) labelNama = "KOTA YOGYAKARTA";
+
+              // 1. Tooltip Hover
+              layer.bindTooltip(labelNama, { sticky: true, direction: "center", className: "leaflet-tooltip" });
+
+              // 2. LABEL PERMANEN DI TENGAH PETA
+              if (layer.getBounds) {
+                var center = layer.getBounds().getCenter();
+                L.marker(center, {
+                  icon: L.divIcon({
+                    className: "label-wilayah",
+                    html: `<div>${labelNama}</div>`,
+                    iconSize: [150, 20],
+                    iconAnchor: [75, 10],
+                  }),
+                  interactive: false,
+                }).addTo(map);
+              }
+
+              // 3. Efek Hover
+              layer.on("mouseover", function () {
+                this.setStyle({ fillOpacity: 0.8, weight: 4 });
+              });
+              layer.on("mouseout", function () {
+                this.setStyle({ fillOpacity: 0.6, weight: 2 });
+              });
+              layer.on("click", function () {
+                map.fitBounds(this.getBounds());
+              });
+            },
+          }).addTo(map);
+        })
+        .catch((err) => console.error("Gagal load GeoJSON:", err));
+
+      // =========================================
+      // F. GENERATE LIST LEGENDA
+      // =========================================
+      const legendDiv = document.getElementById("legendList");
+      const wilayahList = [
+        { nama: "Kota Yogyakarta", code: "KOTA", loc: [-7.8, 110.37], z: 13 },
+        { nama: "Kab. Sleman", code: "SLEMAN", loc: [-7.7, 110.42], z: 11 },
+        { nama: "Kab. Bantul", code: "BANTUL", loc: [-7.9, 110.35], z: 11 },
+        { nama: "Kab. Kulon Progo", code: "KULON", loc: [-7.85, 110.18], z: 11 },
+        { nama: "Kab. Gunungkidul", code: "GUNUNG", loc: [-7.98, 110.6], z: 11 },
+      ];
+
+      wilayahList.forEach((w) => {
+        let item = document.createElement("div");
+        item.className = "legend-item";
+        item.onclick = () => map.flyTo(w.loc, w.z, { duration: 1.5 });
+        item.innerHTML = `
+          <div class="color-box" style="background:${COLORS[w.code]}"></div>
+          <span class="legend-text">${w.nama}</span>
+        `;
+        legendDiv.appendChild(item);
+      });
+    </script>
+  </body>
+</html>
